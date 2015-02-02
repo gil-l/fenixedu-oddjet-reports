@@ -33,12 +33,17 @@
     	</div>
   	</div>
   	
-    <div class="form-group ${errors.onFile != null ? 'has-error' : ''}">
-        <label for="ReportTemplateFile" class="col-sm-2 control-label"><spring:message code="pages.edit.label.file"/>:</label>
-        <div class="col-sm-6">
-            <input class="form-control" type="file" name="file" class="form-control" id="ReportTemplateFile" placeholder="<spring:message code="pages.edit.label.file"/>...">
-            <c:if test="${errors.onFile != null}"><p class="text-danger"><spring:message code="${errors.onFile}"/></p></c:if>
-        </div>
+  	<div class="${errors.onFiles != null ? 'has-error' : ''}">
+	  	<c:forEach var="locale" items="${locales}" varStatus="status">
+		    <div class="form-group ${errors.onFile[status.index] != null ? 'has-error' : ''}">
+		        <label for="ReportTemplateFile" class="col-sm-2 control-label"><spring:message code="pages.edit.label.file"/> ${locale.getDisplayName()}:</label>
+		        <div class="col-sm-6">
+		            <input class="form-control" type="file" name="files" class="form-control" id="ReportTemplateFile" placeholder="<spring:message code="pages.edit.label.file"/>...">
+		            <c:if test="${errors.onFile[status.index] != null}"><p class="text-danger"><spring:message code="${errors.onFile[status.index]}"/></p></c:if>
+		        </div>
+		    </div>
+	    </c:forEach>
+		<c:if test="${errors.onFiles != null}"><p class="col-sm-offset-2 text-danger"><spring:message code="${errors.onFiles}"/></p></c:if>
     </div>
 
     <div class="form-group">
@@ -53,32 +58,37 @@
 
 <c:if test="${not empty reportPreviousFiles}">
     <h3><spring:message code="pages.edit.label.template.previous"/></h3>
-    <table class="table table-striped">
-      	<thead>
-        	<tr>
-         		<th class="col-md-5"><spring:message code="pages.edit.label.name"/></th>
-         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.date"/></th>
-         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.size"/></th>
-         		<th class="col-md-3 text-center"><spring:message code="pages.edit.label.link"/></th>
-        	</tr>
-      	</thead>
-     	<tbody>
-			<c:forEach var="file" items="${reportPreviousFiles}">
-				<tr>
-					<td class="col-md-5">${file.name}</td>
-					<td class="col-md-2 text-center">${file.date}</td>
-					<td class="col-md-2 text-center">${file.size}</td>
-					<td class="col-md-3 text-center">
-						<div class="btn-group">
-							<a href="${file.link}" class="btn btn-sm btn-default">
-								<spring:message code="action.download"/>
-							</a>
-           				</div>
-           			</td>
-				</tr>
-			</c:forEach>
-    		</tbody>
-   	</table>
+	<c:forEach var="fileHistory" items="${reportPreviousFiles}">
+		<c:if test="${not empty fileHistory.value}">
+	    <table class="table table-striped">
+	      	<thead>
+				<tr><th class="text-center" colspan="4"><em>Locale ${fileHistory.key.getDisplayName()}</em></th></tr>
+	        	<tr>
+	         		<th class="col-md-5"><spring:message code="pages.edit.label.name"/></th>
+	         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.date"/></th>
+	         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.size"/></th>
+	         		<th class="col-md-3 text-center"><spring:message code="pages.edit.label.link"/></th>
+	        	</tr>
+	      	</thead>
+	     	<tbody>
+				<c:forEach var="file" items="${fileHistory.value}">
+					<tr>
+						<td class="col-md-5">${file.name}</td>
+						<td class="col-md-2 text-center">${file.date}</td>
+						<td class="col-md-2 text-center">${file.size}</td>
+						<td class="col-md-3 text-center">
+							<div class="btn-group">
+								<a href="${file.link}" class="btn btn-sm btn-default">
+									<spring:message code="action.download"/>
+								</a>
+		           			</div>
+		           		</td>
+					</tr>
+				</c:forEach>
+	    	</tbody>
+	   	</table>
+		</c:if>
+	</c:forEach>
 </c:if>
 
 <c:if test="${taskType eq 'edit'}">

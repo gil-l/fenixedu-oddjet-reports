@@ -12,8 +12,22 @@ public class ReportTemplatesSystem {
     int servicePort;
 }
 
-relation ReportTemplateFile {
+public class LocalizedFileHistory {
+	String locale;
+}
+
+relation ReportTemplateLocalizedFileHistory {
     ReportTemplate playsRole report {
+      multiplicity 1..1;
+    }
+
+    LocalizedFileHistory playsRole localizedFileHistory {
+      multiplicity 1..*;
+    }
+}
+
+relation LocalizedFileHistoryFiles {
+    LocalizedFileHistory playsRole fileHistory {
       multiplicity 0..1;
     }
 
@@ -23,7 +37,7 @@ relation ReportTemplateFile {
 }
 
 relation reportTemplatesSystemBennu {
-    .org.fenixedu.bennu.core.domain.Bennu playsRole bennu{
+    .org.fenixedu.bennu.core.domain.Bennu playsRole bennu {
         multiplicity 1..1;
     }
     ReportTemplatesSystem playsRole reportTemplatesSystem {

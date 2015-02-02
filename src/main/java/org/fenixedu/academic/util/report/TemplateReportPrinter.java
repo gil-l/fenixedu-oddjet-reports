@@ -5,9 +5,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.fenixedu.commons.i18n.I18N;
 import org.fenixedu.oddjet.Template;
 import org.fenixedu.oddjet.table.CategoricalTableData;
 import org.fenixedu.oddjet.table.EntryListTableData;
@@ -45,12 +47,14 @@ public class TemplateReportPrinter implements ReportPrinter {
             if (reports.length > 1) {
                 throw ReportsDomainException.printMultipleOdts();
             } else {
-                template = getReportTemplate(reports[0].getKey(), reports[0].getParameters());
+                //template = getReportTemplate(reports[0].getKey(), reports[0].getLocale(), reports[0].getParameters());
+                template = getReportTemplate(reports[0].getKey(), I18N.getLocale(), reports[0].getParameters());
                 document = new ReportResult(template.getInstanceByteArray(), "application/vnd.oasis.opendocument.text", "odt");
             }
         } else {
             for (ReportDescription desc : reports) {
-                template = getReportTemplate(desc.getKey(), desc.getParameters());
+                //template = getReportTemplate(desc.getKey(), desc.getLocale(), desc.getParameters());
+                template = getReportTemplate(desc.getKey(), I18N.getLocale(), desc.getParameters());
                 copy.addDocument(new PdfReader(PrintUtils.print(template.getInstance(), service)));
             }
             copy.close();
@@ -59,18 +63,20 @@ public class TemplateReportPrinter implements ReportPrinter {
         return document;
     }
 
-    private Template getReportTemplate(String key, Map<String, Object> parameters) {
+    private Template getReportTemplate(String key, Locale locale, Map<String, Object> parameters) {
         Template template;
         ReportTemplate report = ReportTemplatesSystem.getInstance().getReportTemplate(key);
 
         if (report == null) {
             template = defaultReport;
             prepareDefaultReport(key, "the provided key does not match any known report", parameters);
+        } else if ((template = report.getTemplate(locale)) == null) {
+            template = defaultReport;
+            prepareDefaultReport(key, "the report does not have a template for the given locale (" + locale.getDisplayName()
+                    + ")", parameters);
         } else {
-            template = report.getTemplate();
             prepareReport(template, parameters);
         }
-
         return template;
     }
 

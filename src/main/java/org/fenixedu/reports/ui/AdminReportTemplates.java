@@ -1,15 +1,21 @@
 package org.fenixedu.reports.ui;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.tika.Tika;
 import org.fenixedu.bennu.core.groups.DynamicGroup;
+import org.fenixedu.bennu.core.util.CoreConfiguration.ConfigurationProperties;
 import org.fenixedu.bennu.io.domain.GroupBasedFile;
 import org.fenixedu.bennu.spring.portal.SpringApplication;
 import org.fenixedu.bennu.spring.portal.SpringFunctionality;
+import org.fenixedu.commons.configuration.ConfigurationInvocationHandler;
 import org.fenixedu.commons.i18n.LocalizedString;
 import org.fenixedu.reports.domain.ReportTemplate;
 import org.fenixedu.reports.domain.ReportTemplatesSystem;
@@ -35,6 +41,17 @@ import com.google.common.collect.Lists;
 public class AdminReportTemplates {
 
     private static final int ITEMS_PER_PAGE = 30;
+    private List<Locale> locales;
+
+    private List<Locale> getLocales() {
+        if (locales == null) {
+            ConfigurationProperties config = ConfigurationInvocationHandler.getConfiguration(ConfigurationProperties.class);
+            locales =
+                    Arrays.stream(config.supportedLocales().split("\\s*,\\s*")).map(str -> new Locale(str))
+                            .collect(Collectors.toList());
+        }
+        return locales;
+    }
 
     @RequestMapping
     public String list(Model model) {
@@ -55,15 +72,16 @@ public class AdminReportTemplates {
 
     @RequestMapping(value = "/add", method = RequestMethod.GET)
     public String add(Model model) {
+        model.addAttribute("locales", getLocales());
         return "odt-reports/edit";
     }
 
     @RequestMapping(value = "/add", method = RequestMethod.POST)
     public String add(Model model, @RequestParam String key, @RequestParam LocalizedString name,
-            @RequestParam LocalizedString description, @RequestParam MultipartFile file) {
+            @RequestParam LocalizedString description, @RequestParam MultipartFile[] files) {
 
         byte[] fileContent = null;
-        AdminDataErrorBean errors = new AdminDataErrorBean();
+        AdminDataErrorBean errors = new AdminDataErrorBean(files.length);
         if (key == null || key.isEmpty()) {
             errors.onKey = "pages.edit.error.key.empty";
         } else if (ReportTemplatesSystem.getInstance().getReportTemplate(key) != null) {
@@ -75,25 +93,37 @@ public class AdminReportTemplates {
         if (description == null || description.getContent().isEmpty()) {
             errors.onDescription = "pages.edit.error.description.empty";
         }
-        if (file == null || file.isEmpty()) {
-            errors.onFile = "pages.edit.error.file.undefined";
-        } else {
-            try {
-                fileContent = file.getBytes();
-                String filetype = new Tika().detect(fileContent, file.getName());
-                if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
-                    errors.onFile = "pages.edit.error.file.type";
+        List<Integer> validFiles = new ArrayList<Integer>();
+        errors.onFiles = "pages.edit.error.file.undefined";
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile file = files[i];
+            if (file != null && !file.isEmpty()) {
+                errors.onFiles = null;
+                try {
+                    fileContent = file.getBytes();
+                    String filetype = new Tika().detect(fileContent, file.getName());
+                    if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
+                        errors.onFile[i] = "pages.edit.error.file.type";
+                    } else {
+                        validFiles.add(i);
+                    }
+                } catch (IOException e) {
+                    errors.onFile[i] = "pages.edit.error.file.read";
                 }
-            } catch (IOException e) {
-                errors.onFile = "pages.edit.error.file.read";
             }
         }
 
         if (errors.isEmpty()) {
-            editReportTemplate(null, key, name, file.getOriginalFilename(), description, fileContent);
+            ReportTemplate report = null;
+            for (int i : validFiles) {
+                report =
+                        editReportTemplate(report, key, getLocales().get(i), name, files[i].getOriginalFilename(), description,
+                                fileContent);
+            }
             model.addAttribute("success", "pages.add.success");
             return list(model);
         }
+        model.addAttribute("locales", getLocales());
         model.addAttribute("errors", errors);
         model.addAttribute("reportDescription", description.json());
         model.addAttribute("reportName", name.json());
@@ -105,6 +135,7 @@ public class AdminReportTemplates {
     public String edit(@PathVariable("key") String key, Model model) {
         ReportTemplate report = ReportTemplatesSystem.getInstance().getReportTemplate(key);
         if (report != null) {
+            model.addAttribute("locales", getLocales());
             model.addAttribute("reportPreviousFiles", getPreviousFileBeans(report));
             model.addAttribute("reportDescription", report.getDescription().json());
             model.addAttribute("reportName", report.getName().json());
@@ -117,14 +148,14 @@ public class AdminReportTemplates {
 
     @RequestMapping(value = "/{key}/edit", method = RequestMethod.POST)
     public String edit(@PathVariable("key") String oldKey, Model model, @RequestParam String key,
-            @RequestParam LocalizedString name, @RequestParam LocalizedString description, @RequestParam MultipartFile file) {
+            @RequestParam LocalizedString name, @RequestParam LocalizedString description, @RequestParam MultipartFile[] files) {
         ReportTemplate report;
         if (oldKey == null || oldKey.isEmpty()
                 || (report = ReportTemplatesSystem.getInstance().getReportTemplate(oldKey)) == null) {
             throw ReportsDomainException.keyNotFound();
         }
 
-        AdminDataErrorBean errors = new AdminDataErrorBean();
+        AdminDataErrorBean errors = new AdminDataErrorBean(files.length);
         if (key == null || key.isEmpty()) {
             errors.onKey = "pages.edit.error.key.empty";
         }
@@ -136,23 +167,33 @@ public class AdminReportTemplates {
         }
 
         byte[] fileContent = null;
-        if (file != null && !file.isEmpty()) {
-            try {
-                fileContent = file.getBytes();
-                String filetype = new Tika().detect(fileContent, file.getName());
-                if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
-                    errors.onFile = "pages.edit.error.file.type";
+        List<Integer> validFiles = new ArrayList<Integer>();
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile file = files[i];
+            if (file != null && !file.isEmpty()) {
+                try {
+                    fileContent = file.getBytes();
+                    String filetype = new Tika().detect(fileContent, file.getName());
+                    if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
+                        errors.onFile[i] = "pages.edit.error.file.type";
+                    } else {
+                        validFiles.add(i);
+                    }
+                } catch (IOException e) {
+                    errors.onFile[i] = "pages.edit.error.file.read";
                 }
-            } catch (IOException e) {
-                errors.onFile = "pages.edit.error.file.read";
             }
         }
 
         if (errors.isEmpty()) {
-            editReportTemplate(report, key, name, file.getOriginalFilename(), description, fileContent);
+            for (int i : validFiles) {
+                editReportTemplate(report, key, getLocales().get(i), name, files[i].getOriginalFilename(), description,
+                        fileContent);
+            }
             model.addAttribute("success", "pages.edit.success");
             return list(model);
         }
+        model.addAttribute("locales", getLocales());
         model.addAttribute("errors", errors);
         model.addAttribute("reportPreviousFiles", getPreviousFileBeans(report));
         model.addAttribute("reportDescription", description.json());
@@ -173,9 +214,14 @@ public class AdminReportTemplates {
         }
     }
 
-    private List<FileBean> getPreviousFileBeans(ReportTemplate report) {
-        return report.getTemplateFileSet().stream().sorted((f1, f2) -> f2.getCreationDate().compareTo(f1.getCreationDate()))
-                .map(file -> new FileBean(file)).collect(Collectors.toList());
+    private HashMap<Locale, List<FileBean>> getPreviousFileBeans(ReportTemplate report) {
+        HashMap<Locale, List<FileBean>> files = new HashMap<Locale, List<FileBean>>();
+        report.getLocalizedFileHistorySet()
+                .stream()
+                .forEach(
+                        fh -> files.put(new Locale(fh.getLocale()),
+                                fh.stream().map(f -> new FileBean(f)).collect(Collectors.toList())));
+        return files;
     }
 
     private List<ReportBean> getReportTemplateBeans() {
@@ -184,19 +230,20 @@ public class AdminReportTemplates {
     }
 
     @Atomic(mode = TxMode.WRITE)
-    private ReportTemplate editReportTemplate(ReportTemplate report, String key, LocalizedString name, String filename,
-            LocalizedString description, byte[] fileContent) {
+    private ReportTemplate editReportTemplate(ReportTemplate report, String key, Locale locale, LocalizedString name,
+            String filename, LocalizedString description, byte[] fileContent) {
         if (report != null) {
             report.setReportKey(key);
             report.setName(name);
             report.setDescription(description);
             if (fileContent != null) {
-                report.addTemplateFile(new GroupBasedFile(name.getContent(), filename, fileContent, DynamicGroup.get("managers")));
+                report.addTemplateFile(locale,
+                        new GroupBasedFile(name.getContent(), filename, fileContent, DynamicGroup.get("managers")));
             }
         } else {
             report =
-                    new ReportTemplate(key, name, description, new GroupBasedFile(name.getContent(), filename, fileContent,
-                            DynamicGroup.get("managers")));
+                    new ReportTemplate(key, name, description, locale, new GroupBasedFile(name.getContent(), filename,
+                            fileContent, DynamicGroup.get("managers")));
         }
         return report;
     }
