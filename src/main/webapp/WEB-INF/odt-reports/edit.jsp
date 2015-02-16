@@ -62,7 +62,7 @@
 		<c:if test="${not empty fileHistory.value}">
 	    <table class="table table-striped">
 	      	<thead>
-				<tr><th class="text-center" colspan="4"><em>Locale ${fileHistory.key.getDisplayName()}</em></th></tr>
+				<tr><th class="text-center" colspan="4"><em>${fileHistory.key.getDisplayName()}</em></th></tr>
 	        	<tr>
 	         		<th class="col-md-5"><spring:message code="pages.edit.label.name"/></th>
 	         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.date"/></th>

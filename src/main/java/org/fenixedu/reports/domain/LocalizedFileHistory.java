@@ -12,7 +12,7 @@ import pt.ist.fenixframework.Atomic.TxMode;
 public class LocalizedFileHistory extends LocalizedFileHistory_Base {
 
     public LocalizedFileHistory(Locale locale, GenericFile file) {
-        setLocale(locale.toString());
+        setLocale(locale);
         addTemplateFile(file);
     }
 

@@ -2,7 +2,6 @@ package org.fenixedu.reports.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -11,11 +10,10 @@ import java.util.stream.Collectors;
 
 import org.apache.tika.Tika;
 import org.fenixedu.bennu.core.groups.DynamicGroup;
-import org.fenixedu.bennu.core.util.CoreConfiguration.ConfigurationProperties;
+import org.fenixedu.bennu.core.util.CoreConfiguration;
 import org.fenixedu.bennu.io.domain.GroupBasedFile;
 import org.fenixedu.bennu.spring.portal.SpringApplication;
 import org.fenixedu.bennu.spring.portal.SpringFunctionality;
-import org.fenixedu.commons.configuration.ConfigurationInvocationHandler;
 import org.fenixedu.commons.i18n.LocalizedString;
 import org.fenixedu.reports.domain.ReportTemplate;
 import org.fenixedu.reports.domain.ReportTemplatesSystem;
@@ -41,17 +39,7 @@ import com.google.common.collect.Lists;
 public class AdminReportTemplates {
 
     private static final int ITEMS_PER_PAGE = 30;
-    private List<Locale> locales;
-
-    private List<Locale> getLocales() {
-        if (locales == null) {
-            ConfigurationProperties config = ConfigurationInvocationHandler.getConfiguration(ConfigurationProperties.class);
-            locales =
-                    Arrays.stream(config.supportedLocales().split("\\s*,\\s*")).map(str -> new Locale(str))
-                            .collect(Collectors.toList());
-        }
-        return locales;
-    }
+    private Locale[] locales = CoreConfiguration.supportedLocales().toArray(new Locale[1]);
 
     @RequestMapping
     public String list(Model model) {
@@ -72,7 +60,7 @@ public class AdminReportTemplates {
 
     @RequestMapping(value = "/add", method = RequestMethod.GET)
     public String add(Model model) {
-        model.addAttribute("locales", getLocales());
+        model.addAttribute("locales", locales);
         return "odt-reports/edit";
     }
 
@@ -117,13 +105,13 @@ public class AdminReportTemplates {
             ReportTemplate report = null;
             for (int i : validFiles) {
                 report =
-                        editReportTemplate(report, key, getLocales().get(i), name, files[i].getOriginalFilename(), description,
+                        editReportTemplate(report, key, locales[i], name, files[i].getOriginalFilename(), description,
                                 fileContent);
             }
             model.addAttribute("success", "pages.add.success");
             return list(model);
         }
-        model.addAttribute("locales", getLocales());
+        model.addAttribute("locales", locales);
         model.addAttribute("errors", errors);
         model.addAttribute("reportDescription", description.json());
         model.addAttribute("reportName", name.json());
@@ -135,7 +123,7 @@ public class AdminReportTemplates {
     public String edit(@PathVariable("key") String key, Model model) {
         ReportTemplate report = ReportTemplatesSystem.getInstance().getReportTemplate(key);
         if (report != null) {
-            model.addAttribute("locales", getLocales());
+            model.addAttribute("locales", locales);
             model.addAttribute("reportPreviousFiles", getPreviousFileBeans(report));
             model.addAttribute("reportDescription", report.getDescription().json());
             model.addAttribute("reportName", report.getName().json());
@@ -187,13 +175,12 @@ public class AdminReportTemplates {
 
         if (errors.isEmpty()) {
             for (int i : validFiles) {
-                editReportTemplate(report, key, getLocales().get(i), name, files[i].getOriginalFilename(), description,
-                        fileContent);
+                editReportTemplate(report, key, locales[i], name, files[i].getOriginalFilename(), description, fileContent);
             }
             model.addAttribute("success", "pages.edit.success");
             return list(model);
         }
-        model.addAttribute("locales", getLocales());
+        model.addAttribute("locales", locales);
         model.addAttribute("errors", errors);
         model.addAttribute("reportPreviousFiles", getPreviousFileBeans(report));
         model.addAttribute("reportDescription", description.json());
@@ -216,11 +203,8 @@ public class AdminReportTemplates {
 
     private HashMap<Locale, List<FileBean>> getPreviousFileBeans(ReportTemplate report) {
         HashMap<Locale, List<FileBean>> files = new HashMap<Locale, List<FileBean>>();
-        report.getLocalizedFileHistorySet()
-                .stream()
-                .forEach(
-                        fh -> files.put(new Locale(fh.getLocale()),
-                                fh.stream().map(f -> new FileBean(f)).collect(Collectors.toList())));
+        report.getLocalizedFileHistorySet().stream()
+                .forEach(fh -> files.put(fh.getLocale(), fh.stream().map(f -> new FileBean(f)).collect(Collectors.toList())));
         return files;
     }
 
