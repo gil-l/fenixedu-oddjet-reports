@@ -60,15 +60,25 @@ public class AdminReportTemplates {
 
     @RequestMapping(value = "/add", method = RequestMethod.GET)
     public String add(Model model) {
-        model.addAttribute("locales", locales);
         return "odt-reports/edit";
+    }
+
+    private class FileTemplate {
+        public Locale locale;
+        public byte[] content;
+        public String name;
+
+        public FileTemplate(Locale locale, byte[] content, String name) {
+            this.locale = locale;
+            this.content = content;
+            this.name = name;
+        }
     }
 
     @RequestMapping(value = "/add", method = RequestMethod.POST)
     public String add(Model model, @RequestParam String key, @RequestParam LocalizedString name,
             @RequestParam LocalizedString description, @RequestParam MultipartFile[] files) {
 
-        byte[] fileContent = null;
         AdminDataErrorBean errors = new AdminDataErrorBean(files.length);
         if (key == null || key.isEmpty()) {
             errors.onKey = "pages.edit.error.key.empty";
@@ -81,19 +91,20 @@ public class AdminReportTemplates {
         if (description == null || description.getContent().isEmpty()) {
             errors.onDescription = "pages.edit.error.description.empty";
         }
-        List<Integer> validFiles = new ArrayList<Integer>();
+
+        List<FileTemplate> validFiles = new ArrayList<FileTemplate>();
         errors.onFiles = "pages.edit.error.file.undefined";
         for (int i = 0; i < files.length; i++) {
             MultipartFile file = files[i];
             if (file != null && !file.isEmpty()) {
                 errors.onFiles = null;
                 try {
-                    fileContent = file.getBytes();
+                    byte[] fileContent = file.getBytes();
                     String filetype = new Tika().detect(fileContent, file.getName());
                     if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
                         errors.onFile[i] = "pages.edit.error.file.type";
                     } else {
-                        validFiles.add(i);
+                        validFiles.add(new FileTemplate(locales[i], fileContent, file.getOriginalFilename()));
                     }
                 } catch (IOException e) {
                     errors.onFile[i] = "pages.edit.error.file.read";
@@ -103,15 +114,12 @@ public class AdminReportTemplates {
 
         if (errors.isEmpty()) {
             ReportTemplate report = null;
-            for (int i : validFiles) {
-                report =
-                        editReportTemplate(report, key, locales[i], name, files[i].getOriginalFilename(), description,
-                                fileContent);
+            for (FileTemplate t : validFiles) {
+                report = editReportTemplate(report, key, t.locale, name, t.name, description, t.content);
             }
             model.addAttribute("success", "pages.add.success");
             return list(model);
         }
-        model.addAttribute("locales", locales);
         model.addAttribute("errors", errors);
         model.addAttribute("reportDescription", description.json());
         model.addAttribute("reportName", name.json());
@@ -154,18 +162,17 @@ public class AdminReportTemplates {
             errors.onDescription = "pages.edit.error.description.empty";
         }
 
-        byte[] fileContent = null;
-        List<Integer> validFiles = new ArrayList<Integer>();
+        List<FileTemplate> validFiles = new ArrayList<FileTemplate>();
         for (int i = 0; i < files.length; i++) {
             MultipartFile file = files[i];
             if (file != null && !file.isEmpty()) {
                 try {
-                    fileContent = file.getBytes();
+                    byte[] fileContent = file.getBytes();
                     String filetype = new Tika().detect(fileContent, file.getName());
                     if (!filetype.equals("application/vnd.oasis.opendocument.text")) {
                         errors.onFile[i] = "pages.edit.error.file.type";
                     } else {
-                        validFiles.add(i);
+                        validFiles.add(new FileTemplate(locales[i], fileContent, file.getOriginalFilename()));
                     }
                 } catch (IOException e) {
                     errors.onFile[i] = "pages.edit.error.file.read";
@@ -174,13 +181,12 @@ public class AdminReportTemplates {
         }
 
         if (errors.isEmpty()) {
-            for (int i : validFiles) {
-                editReportTemplate(report, key, locales[i], name, files[i].getOriginalFilename(), description, fileContent);
+            for (FileTemplate t : validFiles) {
+                report = editReportTemplate(report, key, t.locale, name, t.name, description, t.content);
             }
             model.addAttribute("success", "pages.edit.success");
             return list(model);
         }
-        model.addAttribute("locales", locales);
         model.addAttribute("errors", errors);
         model.addAttribute("reportPreviousFiles", getPreviousFileBeans(report));
         model.addAttribute("reportDescription", description.json());

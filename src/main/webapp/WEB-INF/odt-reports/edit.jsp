@@ -34,9 +34,9 @@
   	</div>
   	
   	<div class="${errors.onFiles != null ? 'has-error' : ''}">
-	  	<c:forEach var="locale" items="${locales}" varStatus="status">
+	  	<c:forEach var="locale" items="${portal.supportedLocales}" varStatus="status">
 		    <div class="form-group ${errors.onFile[status.index] != null ? 'has-error' : ''}">
-		        <label for="ReportTemplateFile" class="col-sm-2 control-label"><spring:message code="pages.edit.label.file"/> ${locale.getDisplayName()}:</label>
+		        <label for="ReportTemplateFile" class="col-sm-2 control-label"><spring:message code="pages.edit.label.file"/> ${locale.getDisplayName(portal.locale)}:</label>
 		        <div class="col-sm-6">
 		            <input class="form-control" type="file" name="files" class="form-control" id="ReportTemplateFile" placeholder="<spring:message code="pages.edit.label.file"/>...">
 		            <c:if test="${errors.onFile[status.index] != null}"><p class="text-danger"><spring:message code="${errors.onFile[status.index]}"/></p></c:if>
@@ -62,7 +62,7 @@
 		<c:if test="${not empty fileHistory.value}">
 	    <table class="table table-striped">
 	      	<thead>
-				<tr><th class="text-center" colspan="4"><em>${fileHistory.key.getDisplayName()}</em></th></tr>
+				<tr><th class="text-center" colspan="4"><em>${fileHistory.key.getDisplayName(portal.locale)}</em></th></tr>
 	        	<tr>
 	         		<th class="col-md-5"><spring:message code="pages.edit.label.name"/></th>
 	         		<th class="col-md-2 text-center"><spring:message code="pages.edit.label.date"/></th>

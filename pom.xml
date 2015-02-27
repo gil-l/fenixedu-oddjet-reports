@@ -15,7 +15,7 @@
     <name>FenixEdu ODDJET reports</name>
 
     <properties>
-        <version.org.fenixedu.academic>4.0.2</version.org.fenixedu.academic>
+        <version.org.fenixedu.academic>4.1.0-SNAPSHOT</version.org.fenixedu.academic>
         <version.org.fenixedu.oddjet>1.1.0-SNAPSHOT</version.org.fenixedu.oddjet>
     </properties>
 
